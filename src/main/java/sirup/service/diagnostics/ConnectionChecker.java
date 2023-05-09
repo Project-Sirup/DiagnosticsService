@@ -2,6 +2,8 @@ package sirup.service.diagnostics;
 
 import sirup.service.auth.rpc.client.AuthClient;
 import sirup.service.auth.rpc.client.AuthServiceUnavailableException;
+import sirup.service.diag.rpc.proto.Report;
+import sirup.service.diag.rpc.proto.Vitals;
 import sirup.service.log.rpc.client.LogClient;
 
 import java.io.IOException;
@@ -10,6 +12,7 @@ import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
 
 public class ConnectionChecker {
 
@@ -22,25 +25,27 @@ public class ConnectionChecker {
     private int failed = 0;
     private final int total = 5;
 
-    public void reformDiagnostics() {
+    public Report reformDiagnostics() {
+        Report.Builder reportBuilder = Report.newBuilder();
         long start = System.currentTimeMillis();
         LogClient logger = LogClient.getInstance();
         logger.info("Performing diagnostics...");
         logger.info("Checking gRPC services");
-        checkGrpc();
+        checkGrpc(reportBuilder);
         logger.info("Checking REST services");
-        checkREST();
+        checkREST(reportBuilder);
         logger.info("Diagnostics performed in " + (System.currentTimeMillis() - start) + "ms");
         if (failed > 0) {
             logger.warn(failed + " / " + total + " service(s) did not respond");
-            return;
+            return reportBuilder.build();
         }
         logger.info("All services responded, system running fine");
+        return reportBuilder.build();
     }
 
-    public void checkREST() {
+    public void checkREST(Report.Builder reportBuilder) {
         HttpClient client = HttpClient.newBuilder().build();
-        time("RegisterService", () -> {
+        time(reportBuilder, "RegisterService", () -> {
             try {
                 return _checkREST(client, HttpRequest.newBuilder()
                         .uri(new URI(regService))
@@ -51,7 +56,7 @@ public class ConnectionChecker {
                 return false;
             }
         });
-        time("UserService", () -> {
+        time(reportBuilder, "UserService", () -> {
             try {
                 return _checkREST(client, HttpRequest.newBuilder()
                         .uri(new URI(userService))
@@ -62,7 +67,7 @@ public class ConnectionChecker {
                 return false;
             }
         });
-        time("NotificationService", () -> {
+        time(reportBuilder, "NotificationService", () -> {
             try {
                 return _checkREST(client, HttpRequest.newBuilder()
                         .uri(new URI(notifyService))
@@ -75,10 +80,10 @@ public class ConnectionChecker {
         });
     }
 
-    public void checkGrpc() {
-        time("LogService", () -> logClient.health() == 200);
+    public void checkGrpc(Report.Builder reportBuilder) {
+        time(reportBuilder,"LogService", () -> logClient.health() == 200);
         AuthClient authClient = AuthClient.getInstance();
-        time("AuthService", () -> {
+        time(reportBuilder, "AuthService", () -> {
             try {
                 return authClient.health() == 200;
             } catch (AuthServiceUnavailableException e) {
@@ -87,7 +92,7 @@ public class ConnectionChecker {
         });
     }
 
-    private void time(String serviceName, Timed timed) {
+    private void time(Report.Builder reportBuilder, String serviceName, Timed timed) {
         logClient.info("Checking " + serviceName);
         long start = System.currentTimeMillis();
         boolean responded = timed.check();
@@ -95,9 +100,14 @@ public class ConnectionChecker {
         if (!responded) {
             failed++;
             logClient.warn("Did not respond");
-            return;
+            time = -1;
         }
         logClient.info("Responded in " + time + "ms");
+        reportBuilder.addVitals(Vitals.newBuilder()
+                .setServiceName(serviceName)
+                .setRunning(responded)
+                .setResponseTime(time)
+                .build());
     }
 
     private interface Timed {
