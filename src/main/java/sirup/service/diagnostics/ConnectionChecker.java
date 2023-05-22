@@ -43,7 +43,7 @@ public class ConnectionChecker {
         return reportBuilder.build();
     }
 
-    public void checkREST(Report.Builder reportBuilder) {
+    private void checkREST(Report.Builder reportBuilder) {
         HttpClient client = HttpClient.newBuilder().build();
         time(reportBuilder, "RegisterService", () -> {
             try {
@@ -80,7 +80,7 @@ public class ConnectionChecker {
         });
     }
 
-    public void checkGrpc(Report.Builder reportBuilder) {
+    private void checkGrpc(Report.Builder reportBuilder) {
         time(reportBuilder,"LogService", () -> logClient.health() == 200);
         AuthClient authClient = AuthClient.getInstance();
         time(reportBuilder, "AuthService", () -> {
