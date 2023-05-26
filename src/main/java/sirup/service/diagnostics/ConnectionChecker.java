@@ -16,9 +16,9 @@ import java.util.ArrayList;
 
 public class ConnectionChecker {
 
-    private final String regService = "http://127.0.0.1:2100/api/v1/health";
-    private final String userService = "http://127.0.0.1:2103/api/v1/health";
-    private final String notifyService = "http://127.0.0.1:2104/api/v1/health";
+    private final String regService = Env.REG_ADDRESS + ":" + Env.REG_PORT + "/api/v1/health";
+    private final String userService = Env.USER_ADDRESS + ":" + Env.USER_PORT + "/api/v1/health";
+    private final String notifyService = Env.NOTI_ADDRESS + ":" + Env.NOTI_PORT + "/api/v1/health";
 
     private final LogClient logClient = LogClient.getInstance();
 

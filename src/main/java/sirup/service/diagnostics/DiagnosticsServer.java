@@ -9,12 +9,12 @@ import java.util.concurrent.TimeUnit;
 
 public class DiagnosticsServer {
 
-    private int port = 2105;
+    private int port = Env.DIAG_PORT;
     private Server server;
     private LogClient logger = LogClient.getInstance();
 
     public void start() throws IOException {
-        server = ServerBuilder.forPort(2105).addService(new DiagnosticsImplementation()).build();
+        server = ServerBuilder.forPort(port).addService(new DiagnosticsImplementation()).build();
         server.start();
         logger.info("Service Running, listening on " + port);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
